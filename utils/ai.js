@@ -61,6 +61,7 @@ const analyzeTicket = async (ticket) => {
         console.log("Failed to parse JSON from AI response" + e.message);
         return null; // watch out for this
       }
-
     
 }
+
+export default analyzeTicket;
