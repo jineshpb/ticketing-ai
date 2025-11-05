@@ -32,19 +32,53 @@ export const onTicketCreated = inngest.createFunction(
             //analyze ticket
             const aiResponse = await analyzeTicket(ticket);
 
-            await step.run("ai-processing", async () => {
+            const relatedSkills = await step.run("ai-processing", async () => {
                 let skills = []
                 if (aiResponse) {
                     await Ticket.findByIdAndUpdate(ticket._id, {
-                        priority: ["low","medium", "high"].includes(aiResponse.priority) ? "medium" : "low",
+                        priority: ["low","medium", "high"].includes(aiResponse.priority) ? "medium" : aiResponse.priority,
+                        helpfulNotes: aiResponse.helpfulNotes,
+                        status: "IN_PROGRESS",
+                        relatedSkills: skills,
                     })
+                    skills = aiResponse.relatedSkills;
+                }
+
+                return skills;
+            })
+
+            const moderator = await step.run("assign-moderator", async () => {
+                let user = await User.findOne({
+                    role: "moderator", 
+                    skills: {
+                        $elemMatch: {
+                            $regex: relatedSkills.join("|"),
+                            $options: "i",
+                        },
+                    }
+                })
+                if (!user) {
+                    user = await User.findOne({role: "admin"})
+                    throw new NonRetriableError("No moderator found with the required skills");
+                }
+
+                await Ticket.findByIdAndUpdate(ticket._id, {assignedTo: user?._id || null});
+                return user;
+            });
+
+            await step.run("send-email-notification", async () => {
+                if (moderator) {
+                    const finalTicket = await Ticket.findById(ticket._id)
+                    const subject = `New ticket assigned to you`;
+                    const message = `Hi, \n\n A new ticket has been assigned to you. Please review it and provide a solution.`;
+                    await SendmailTransport(moderator.email, subject, message + `\n\nTicket: ${finalTicket.title}\n\nDescription: ${finalTicket.description}`);
                 }
             })
 
-            
+            return {success: true}
         } catch (error) {
-            
+            console.error("error running step", error.message);
+            return {success: false};
         }
-      
     }
-)
+);
