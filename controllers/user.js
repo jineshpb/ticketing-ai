@@ -1,25 +1,48 @@
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
-import { User } from "../models/user"
-import { Inngest } from "inngest"
-import { inngest } from "../inngest/client"
+import User from "../models/user.js";
+import { inngest } from "../inngest/client.js";
 
 export const signup = async (req, res) => {
-    const {email, password, skills=[]} = req.body;
+    const {email, password, skills} = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+        return res.status(400).json({error: "Email and password are required"});
+    }
+
+    // Normalize skills to array
+    let skillsArray = [];
+    if (skills) {
+        if (Array.isArray(skills)) {
+            skillsArray = skills;
+        } else if (typeof skills === 'string') {
+            // If it's a string, split by comma or use as single item
+            skillsArray = skills.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+    }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10)
-        const user = await User.create({email, password: hashedPassword, skills})
+        const user = await User.create({email, password: hashedPassword, skills: skillsArray})
 
-        //fire inngest event
-        await inngest.send({
-            name: "user/signup",
-            data: {
-                email,
-            }
+        //fire inngest event (don't fail signup if this fails)
+        try {
+            await inngest.send({
+                name: "user/signup",
+                data: {
+                    email,
+                }
+            })
+        } catch (inngestError) {
+            console.error("Inngest event failed:", inngestError);
+            // Continue with signup even if Inngest fails
+        }
 
-           
-        })
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({error: "JWT_SECRET not configured"});
+        }
+
         const token = jwt.sign(
             {
                 _id: user._id, role: user.role
@@ -29,6 +52,18 @@ export const signup = async (req, res) => {
 
         res.json({user,token})
     } catch (error) {
+        console.error("Signup error:", error);
+        
+        // Handle duplicate email error
+        if (error.code === 11000) {
+            return res.status(409).json({error: "Email already exists"});
+        }
+        
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({error: "Validation failed", details: error.message});
+        }
+        
         res.status(500).json({error: "Sign up failed", details: error.message})
     }
 }

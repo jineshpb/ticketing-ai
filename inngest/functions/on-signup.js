@@ -1,7 +1,7 @@
-import { inngest } from "../client";
-import User from "../../models/user";
+import { inngest } from "../client.js";
+import User from "../../models/user.js";
 import { NonRetriableError } from "inngest";
-import SendmailTransport from "nodemailer/lib/sendmail-transport";
+import sendEmail from "../../utils/email.js";
 
 
 export const onUserSignup = inngest.createFunction(
@@ -19,17 +19,35 @@ export const onUserSignup = inngest.createFunction(
                 return userObject;
             });
 
-            await step.run("send-welcome-email", async ()=>{
-                const subject = `Welcome to the app`
-                const message = `Hi, 
-                \n\n
-                Thanks for signing up. We are glad to have you onboard!
-                `
+            const emailResult = await step.run("send-welcome-email", async ()=>{
+                try {
+                    const subject = `Welcome to the app`
+                    const message = `Hi, 
+                    \n\n
+                    Thanks for signing up. We are glad to have you onboard!
+                    `
 
-                await SendmailTransport(user.email, subject, message)
+                    const info = await sendEmail(user.email, subject, message);
+                    return { 
+                        success: true, 
+                        messageId: info?.messageId || 'test-mode',
+                        to: user.email 
+                    };
+                } catch (emailError) {
+                    // Email sending is not critical - log but don't fail the function
+                    console.error("Failed to send welcome email:", emailError.message);
+                    return { 
+                        success: false, 
+                        error: emailError.message 
+                    };
+                }
             })
 
-            return {success: true}
+            return {
+                success: true,
+                emailSent: emailResult?.success || false,
+                emailResult
+            }
         } catch (error) {
             console.error("error runing step", error.message);
             return { success: false}

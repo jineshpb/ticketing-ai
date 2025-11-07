@@ -1,7 +1,7 @@
 import express from "express";
-import { authenticate } from "../middlewares/auth";
-import { signup, login, logout, updateUser, getUsers } from "../controllers/user";
-import { createTicket, getTickets, getTicket } from "../controllers/ticket";
+import { authenticate } from "../middlewares/auth.js";
+import { signup, login, logout, updateUser, getUsers } from "../controllers/user.js";
+import { createTicket, getTickets, getTicket } from "../controllers/ticket.js";
 
 
 

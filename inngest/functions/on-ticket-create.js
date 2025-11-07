@@ -1,9 +1,9 @@
-import { inngest } from "../client";
-import User from "../../models/user";
+import { inngest } from "../client.js";
+import User from "../../models/user.js";
 import { NonRetriableError } from "inngest";
-import SendmailTransport from "nodemailer/lib/sendmail-transport";
-import Ticket from "../../models/ticket";
-import analyzeTicket from "../../utils/ai";
+import sendEmail from "../../utils/email.js";
+import Ticket from "../../models/ticket.js";
+import analyzeTicket from "../../utils/ai.js";
 
 export const onTicketCreated = inngest.createFunction(
     {id: "on-ticket-created",},
@@ -71,7 +71,7 @@ export const onTicketCreated = inngest.createFunction(
                     const finalTicket = await Ticket.findById(ticket._id)
                     const subject = `New ticket assigned to you`;
                     const message = `Hi, \n\n A new ticket has been assigned to you. Please review it and provide a solution.`;
-                    await SendmailTransport(moderator.email, subject, message + `\n\nTicket: ${finalTicket.title}\n\nDescription: ${finalTicket.description}`);
+                    await sendEmail(moderator.email, subject, message + `\n\nTicket: ${finalTicket.title}\n\nDescription: ${finalTicket.description}`);
                 }
             })
 
