@@ -48,7 +48,7 @@ export const onTicketCreated = inngest.createFunction(
             })
 
             const moderator = await step.run("assign-moderator", async () => {
-                let user = await User.findOne({
+                const moderatorUser = await User.findOne({
                     role: "moderator", 
                     skills: {
                         $elemMatch: {
@@ -57,13 +57,18 @@ export const onTicketCreated = inngest.createFunction(
                         },
                     }
                 })
-                if (!user) {
-                    user = await User.findOne({role: "admin"})
-                    throw new NonRetriableError("No moderator found with the required skills");
+                if (moderatorUser) {
+                    await Ticket.findByIdAndUpdate(ticket._id, {assignedTo: moderatorUser._id});
+                    return moderatorUser;
                 }
 
-                await Ticket.findByIdAndUpdate(ticket._id, {assignedTo: user?._id || null});
-                return user;
+                const adminUser = await User.findOne({role: "admin"});
+                if (!adminUser) {
+                    throw new NonRetriableError("No moderator or admin available to assign.");
+                }
+
+                await Ticket.findByIdAndUpdate(ticket._id, {assignedTo: adminUser._id});
+                return adminUser;
             });
 
             await step.run("send-email-notification", async () => {
