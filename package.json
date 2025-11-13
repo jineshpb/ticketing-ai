@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon index.js",
-    "inngest-dev": "npx inngest-cli@latest dev"
+    "inngest-dev": "npx inngest-cli@latest dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run inngest-dev\" --names \"server,inngest\" --prefix-colors \"blue,green\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.10"
   },
   "dependencies": {
