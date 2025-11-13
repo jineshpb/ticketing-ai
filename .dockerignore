@@ -6,4 +6,7 @@ npm-debug.log
 .gitignore
 README.md
 .DS_Store
+DEPLOYMENT.md
+docker-compose.yml
+.Dockerfile
 
